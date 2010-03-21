@@ -1,0 +1,6 @@
+- Load an APNG image.
+- Save to an APNG file.
+- Arguments such as num_plays, first_frame_is_hidden, delay_num, delay_den,
+  dispose_op and blend_op.
+- How to link patched libpng library?
+- Write docs.

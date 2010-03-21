@@ -1,0 +1,19 @@
+APNG Plug-In for GIMP
+=====================
+
+Copyright (C) 2010  Daisuke Nishikawa <daisuken@users.sourceforge.net>
+
+This package is Animated PNG (APNG) plug-in for GIMP 2.x.
+
+The program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3, or any later version.
+See the file COPYING for copying permission. For installation
+instructions, see the file INSTALL.
+
+Additional information can be found at:
+
+	http://sourceforge.net/project/gimp-apng/
+
+Happy GIMPing,
+- Daisuke
