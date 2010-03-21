@@ -67,7 +67,7 @@
 #define SET_DEFAULTS_PROC      "file-apng-set-defaults"
 #define PLUG_IN_BINARY         "file-apng"
 
-#define PLUG_IN_VERSION        "0.0.1 - 21 March 2010"
+#define PLUG_IN_VERSION        "0.0.2 - 21 March 2010"
 #define SCALE_WIDTH            125
 
 #define DEFAULT_GAMMA          2.20
