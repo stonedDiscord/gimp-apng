@@ -29,6 +29,7 @@
  *   query()                     - Respond to a plug-in query...
  *   run()                       - Run the plug-in...
  *   load_image()                - Load a PNG image into a new image window.
+ *   read_frame()                - Read a PNG frame into a layer.
  *   respin_cmap()               - Re-order a Gimp colormap for PNG tRNS
  *   save_image()                - Save the specified image to a PNG file.
  *   save_compression_callback() - Update the image compression level.
@@ -127,6 +128,19 @@ static gboolean  save_image                (const gchar      *filename,
                                             gint32            image_ID,
                                             gint32            drawable_ID,
                                             gint32            orig_image_ID,
+                                            GError          **error);
+
+static void      read_frame                (gint32            layer,
+                                            int               bpp,
+                                            int               empty,
+                                            int               trns,
+                                            guchar           *alpha,
+                                            png_structp       pp,
+                                            png_infop         info,
+                                            png_uint_32       frame_width,
+                                            png_uint_32       frame_height,
+                                            png_uint_32       frame_x_offset,
+                                            png_uint_32       frame_y_offset,
                                             GError          **error);
 
 static void      respin_cmap               (png_structp       pp,
@@ -685,25 +699,16 @@ load_image (const gchar  *filename,
     image_type,                 /* Type of image */
     layer_type,                 /* Type of drawable/layer */
     empty,                      /* Number of fully transparent indices */
-    num_passes,                 /* Number of interlace passes in file */
-    pass,                       /* Current pass in file */
-    tile_height,                /* Height of tile in GIMP */
-    begin,                      /* Beginning tile row */
-    end,                        /* Ending tile row */
     num;                        /* Number of rows to load */
   FILE *fp;                     /* File pointer */
   volatile gint32 image = -1;   /* Image -- preserved against setjmp() */
   gint32 layer;                 /* Layer */
-  GimpDrawable *drawable;       /* Drawable for layer */
-  GimpPixelRgn pixel_rgn;       /* Pixel region for layer */
+  gint offset_x = 0;            /* Offset x from origin */
+  gint offset_y = 0;            /* Offset y from origin */
   png_structp pp;               /* PNG read pointer */
   png_infop info;               /* PNG info pointers */
-  guchar **pixels,              /* Pixel rows */
-   *pixel;                      /* Pixel data */
   guchar alpha[256],            /* Index -> Alpha */
    *alpha_ptr;                  /* Temporary pointer */
-  struct read_error_data
-   error_data;
 
   png_textp  text;
   gint       num_texts;
@@ -778,13 +783,6 @@ load_image (const gchar  *filename,
     {
       png_set_expand (pp);
     }
-
-  /*
-   * Turn on interlace handling... libpng returns just 1 (ie single pass)
-   * if the image is not interlaced
-   */
-
-  num_passes = png_set_interlace_handling (pp);
 
   /*
    * Special handling for INDEXED + tRNS (transparency palette)
@@ -863,16 +861,6 @@ load_image (const gchar  *filename,
     }
 
   /*
-   * Create the "background" layer to hold the image...
-   */
-
-  layer = gimp_layer_new (image, _("Background"),
-                          png_get_image_width (pp, info),
-                          png_get_image_height (pp, info),
-                          layer_type, 100, GIMP_NORMAL_MODE);
-  gimp_image_add_layer (image, layer, 0);
-
-  /*
    * Find out everything we can about the image resolution
    * This is only practical with the new 1.0 APIs, I'm afraid
    * due to a bug in libpng-1.0.6, see png-implement for details
@@ -897,10 +885,8 @@ load_image (const gchar  *filename,
 
   if (png_get_valid (pp, info, PNG_INFO_oFFs))
     {
-      gint offset_x = png_get_x_offset_pixels (pp, info);
-      gint offset_y = png_get_y_offset_pixels (pp, info);
-
-      gimp_layer_set_offsets (layer, offset_x, offset_y);
+      offset_x = png_get_x_offset_pixels (pp, info);
+      offset_y = png_get_y_offset_pixels (pp, info);
 
       if ((abs (offset_x) > png_get_image_width (pp, info)) ||
           (abs (offset_y) > png_get_image_height (pp, info)))
@@ -983,75 +969,139 @@ load_image (const gchar  *filename,
         }
     }
 
-  /*
-   * Get the drawable and set the pixel region for our load...
-   */
-
-  drawable = gimp_drawable_get (layer);
-
-  gimp_pixel_rgn_init (&pixel_rgn, drawable, 0, 0, drawable->width,
-                       drawable->height, TRUE, FALSE);
-
-  /*
-   * Temporary buffer...
-   */
-
-  tile_height = gimp_tile_height ();
-  pixel = g_new0 (guchar, tile_height * png_get_image_width (pp, info) * bpp);
-  pixels = g_new (guchar *, tile_height);
-
-  for (i = 0; i < tile_height; i++)
-    pixels[i] = pixel + png_get_image_width (pp, info) * png_get_channels (pp, info) * i;
-
-  /* Install our own error handler to handle incomplete PNG files better */
-  error_data.drawable    = drawable;
-  error_data.pixel       = pixel;
-  error_data.tile_height = tile_height;
-  error_data.width       = png_get_image_width (pp, info);
-  error_data.height      = png_get_image_height (pp, info);
-  error_data.bpp         = bpp;
-  error_data.pixel_rgn   = &pixel_rgn;
-
-  png_set_error_fn (pp, &error_data, on_read_error, NULL);
-
-  for (pass = 0; pass < num_passes; pass++)
+#if defined(PNG_APNG_SUPPORTED)
+  if (png_get_valid (pp, info, PNG_INFO_acTL))
     {
-      /*
-       * This works if you are only reading one row at a time...
-       */
+      gchar       *framename;
+      gchar       *framename_ptr;
+      png_uint_32  num_frames;
+      png_uint_32  num_plays;
+      png_byte     is_hidden;
+      png_uint_32  frame;
+      png_byte     previous_dispose_op = PNG_DISPOSE_OP_NONE;
 
-      for (begin = 0, end = tile_height;
-           begin < png_get_image_height (pp, info);
-           begin += tile_height, end += tile_height)
+      num_frames = png_get_num_frames(pp, info);
+      num_plays = png_get_num_plays(pp, info);
+      is_hidden = png_get_first_frame_is_hidden(pp, info);
+      for (frame = 0; frame < num_frames; frame++)
         {
-          if (end > png_get_image_height (pp, info))
-            end = png_get_image_height (pp, info);
+          gint         delay = -1;
+          png_uint_32  frame_width;
+          png_uint_32  frame_height;
+          png_uint_32  frame_x_offset = 0;
+          png_uint_32  frame_y_offset = 0;
+          png_byte     frame_dispose_op;
 
-          num = end - begin;
+          png_read_frame_head(pp, info);
+          if (png_get_valid (pp, info, PNG_INFO_fcTL))
+            {
+              png_uint_16  frame_delay_num;
+              png_uint_16  frame_delay_den;
+              png_byte     frame_blend_op;
 
-          if (pass != 0)        /* to handle interlaced PiNGs */
-            gimp_pixel_rgn_get_rect (&pixel_rgn, pixel, 0, begin,
-                                     drawable->width, num);
+              png_get_next_frame_fcTL(pp, info,
+                                      &frame_width, &frame_height,
+                                      &frame_x_offset, &frame_y_offset,
+                                      &frame_delay_num, &frame_delay_den,
+                                      &frame_dispose_op, &frame_blend_op);
+              if (frame_delay_den == 0)
+                frame_delay_den = 100;
 
-          error_data.begin = begin;
-          error_data.end   = end;
-          error_data.num   = num;
+              delay = frame_delay_num * 1000 / frame_delay_den;
+            }
+          else
+            {
+              /*
+               * The first frame doesn't have an fcTL so it's expected 
+               * to be hidden, but we'll extract it anyway
+               */
 
-          png_read_rows (pp, pixels, NULL, num);
+              frame_width = png_get_image_width (pp, info);
+              frame_height = png_get_image_height (pp, info);
+              frame_dispose_op = PNG_DISPOSE_OP_NONE;
+            }
 
-          gimp_pixel_rgn_set_rect (&pixel_rgn, pixel, 0, begin,
-                                   drawable->width, num);
+          if (frame == 0)
+            {
+              if (delay < 0)
+                framename = g_strdup (_("Background"));
+              else
+                framename = g_strdup_printf (_("Background (%d%s)"),
+                                             delay, "ms");
 
-          memset (pixel, 0, tile_height * png_get_image_width (pp, info) * bpp);
+              if (frame_dispose_op == PNG_DISPOSE_OP_PREVIOUS)
+                frame_dispose_op == PNG_DISPOSE_OP_BACKGROUND;
+            }
+          else
+            {
+              gimp_progress_set_text_printf (_("Opening '%s' (frame %d)"),
+                                             gimp_filename_to_utf8 (filename),
+                                             frame);
+              gimp_progress_pulse ();
 
-          gimp_progress_update (((gdouble) pass +
-                                 (gdouble) end / (gdouble) png_get_image_height (pp, info)) /
-                                (gdouble) num_passes);
+              if (delay < 0)
+                framename = g_strdup_printf (_("Frame %d"), frame + 1);
+              else
+                framename = g_strdup_printf (_("Frame %d (%d%s)"), frame + 1,
+                                             delay, "ms");
+            }
+
+          switch (previous_dispose_op)
+            {
+            case PNG_DISPOSE_OP_NONE:
+              break;
+            case PNG_DISPOSE_OP_BACKGROUND:
+              framename_ptr = framename;
+              framename = g_strconcat (framename, " (replace)", NULL);
+              g_free (framename_ptr);
+              break;
+            case PNG_DISPOSE_OP_PREVIOUS: /* For now, cannot handle this */
+              framename_ptr = framename;
+              framename = g_strconcat (framename, " (combine) (!)", NULL);
+              g_free (framename_ptr);
+              break;
+            default:
+              g_message ("dispose_op got corrupted.");
+              break;
+            }
+          previous_dispose_op = frame_dispose_op;
+
+          layer = gimp_layer_new (image, framename, frame_width, frame_height,
+                                  layer_type, 100, GIMP_NORMAL_MODE);
+          gimp_image_add_layer (image, layer, 0);
+
+          if (offset_x != 0 && offset_y != 0)
+            gimp_layer_set_offsets (layer, offset_x, offset_y);
+
+          gimp_layer_translate (layer,
+                                (gint) frame_x_offset, (gint) frame_y_offset);
+
+          read_frame (layer, bpp, empty, trns, alpha, pp, info,
+                      frame_width, frame_height,
+                      frame_x_offset, frame_y_offset, error);
         }
     }
+  else
+#endif
+    {
+      /*
+       * Create the "background" layer to hold the image...
+       */
 
-  /* Switch back to default error handler */
-  png_set_error_fn (pp, NULL, NULL, NULL);
+      layer = gimp_layer_new (image, _("Background"),
+                              png_get_image_width (pp, info),
+                              png_get_image_height (pp, info),
+                              layer_type, 100, GIMP_NORMAL_MODE);
+      gimp_image_add_layer (image, layer, 0);
+
+      if (offset_x != 0 && offset_y != 0)
+        gimp_layer_set_offsets (layer, offset_x, offset_y);
+
+      read_frame (layer, bpp, empty, trns, alpha, pp, info,
+                  png_get_image_width (pp, info),
+                  png_get_image_height (pp, info),
+                  0, 0, error);
+    }
 
   png_read_end (pp, info);
 
@@ -1139,13 +1189,121 @@ load_image (const gchar  *filename,
    */
 
   png_destroy_read_struct (&pp, &info, NULL);
+  fclose (fp);
+
+  return image;
+}
+
+/*
+ * 'read_frame()' - Read a PNG frame into a layer.
+ */
+
+static void
+read_frame (gint32        layer,
+            int           bpp,
+            int           empty,
+            int           trns,
+            guchar       *alpha,
+            png_structp   pp,
+            png_infop     info,
+            png_uint_32   frame_width,
+            png_uint_32   frame_height,
+            png_uint_32   frame_x_offset,
+            png_uint_32   frame_y_offset,
+            GError      **error)
+{
+  int i,                        /* Looping var */
+    num_passes,                 /* Number of interlace passes in file */
+    pass,                       /* Current pass in file */
+    tile_height,                /* Height of tile in GIMP */
+    begin,                      /* Beginning tile row */
+    end,                        /* Ending tile row */
+    num;                        /* Number of rows to load */
+  GimpDrawable *drawable;       /* Drawable for layer */
+  GimpPixelRgn pixel_rgn;       /* Pixel region for layer */
+  guchar **pixels,              /* Pixel rows */
+   *pixel;                      /* Pixel data */
+  struct read_error_data
+   error_data;
+
+  /*
+   * Get the drawable and set the pixel region for our load...
+   */
+
+  drawable = gimp_drawable_get (layer);
+
+  gimp_pixel_rgn_init (&pixel_rgn, drawable, 0, 0, drawable->width,
+                       drawable->height, TRUE, FALSE);
+
+  /*
+   * Temporary buffer...
+   */
+
+  tile_height = gimp_tile_height ();
+  pixel = g_new0 (guchar, tile_height * frame_width * bpp);
+  pixels = g_new (guchar *, tile_height);
+
+  for (i = 0; i < tile_height; i++)
+    pixels[i] = pixel + frame_width * png_get_channels(pp, info) * i;
+
+  /* Install our own error handler to handle incomplete PNG files better */
+  error_data.drawable    = drawable;
+  error_data.pixel       = pixel;
+  error_data.tile_height = tile_height;
+  error_data.width       = frame_width;
+  error_data.height      = frame_height;
+  error_data.bpp         = bpp;
+  error_data.pixel_rgn   = &pixel_rgn;
+
+  png_set_error_fn (pp, &error_data, on_read_error, NULL);
+
+  /*
+   * Turn on interlace handling... libpng returns just 1 (ie single pass)
+   * if the image is not interlaced
+   */
+
+  num_passes = png_set_interlace_handling (pp);
+
+  for (pass = 0; pass < num_passes; pass++)
+    {
+      /*
+       * This works if you are only reading one row at a time...
+       */
+
+      for (begin = 0, end = tile_height;
+           begin < frame_height; begin += tile_height, end += tile_height)
+        {
+          if (end > frame_height)
+            end = frame_height;
+
+          num = end - begin;
+
+          if (pass != 0)        /* to handle interlaced PiNGs */
+            gimp_pixel_rgn_get_rect (&pixel_rgn, pixel, 0, begin,
+                                     drawable->width, num);
+
+          error_data.begin = begin;
+          error_data.end   = end;
+          error_data.num   = num;
+
+          png_read_rows (pp, pixels, NULL, num);
+
+          gimp_pixel_rgn_set_rect (&pixel_rgn, pixel, 0, begin,
+                                   drawable->width, num);
+
+          memset (pixel, 0, tile_height * frame_width * bpp);
+
+          gimp_progress_update (((gdouble) pass +
+                                 (gdouble) end / (gdouble) frame_height) /
+                                (gdouble) num_passes);
+        }
+    }
+
+  /* Switch back to default error handler */
+  png_set_error_fn (pp, NULL, NULL, NULL);
 
   g_free (pixel);
   g_free (pixels);
-  free (pp);
-  free (info);
-
-  fclose (fp);
 
   if (trns)
     {
@@ -1185,8 +1343,6 @@ load_image (const gchar  *filename,
 
   gimp_drawable_flush (drawable);
   gimp_drawable_detach (drawable);
-
-  return image;
 }
 
 
