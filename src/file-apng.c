@@ -959,21 +959,27 @@ load_image (const gchar  *filename,
 
   if (png_get_color_type (pp, info) & PNG_COLOR_MASK_PALETTE)
     {
-      if (png_get_valid (pp, info, PNG_INFO_tRNS))
-        {
-          for (empty = 0; empty < 256 && alpha[empty] == 0; ++empty)
-            /* Calculates number of fully transparent "empty" entries */;
+      png_colorp palette;
+      int num_palette;
 
-          /*  keep at least one entry  */
-          empty = MIN (empty, info->num_palette - 1);
-
-          gimp_image_set_colormap (image, (guchar *) (info->palette + empty),
-                                   info->num_palette - empty);
-        }
-      else
+      if (png_get_PLTE (pp, info, &palette, &num_palette))
         {
-          gimp_image_set_colormap (image, (guchar *) info->palette,
-                                   info->num_palette);
+          if (png_get_valid (pp, info, PNG_INFO_tRNS))
+            {
+              for (empty = 0; empty < 256 && alpha[empty] == 0; ++empty)
+                /* Calculates number of fully transparent "empty" entries */;
+
+              /*  keep at least one entry  */
+              empty = MIN (empty, num_palette - 1);
+
+              gimp_image_set_colormap (image, (guchar *) (palette + empty),
+                                       num_palette - empty);
+            }
+          else
+            {
+              gimp_image_set_colormap (image, (guchar *) palette,
+                                       num_palette);
+            }
         }
     }
 
