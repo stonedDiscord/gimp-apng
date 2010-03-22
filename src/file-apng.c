@@ -773,7 +773,7 @@ load_image (const gchar  *filename,
    * Expand G+tRNS to GA, RGB+tRNS to RGBA
    */
 
-  if (png_get_color_type (pp, info) == PNG_COLOR_TYPE_PALETTE &&
+  if (png_get_color_type (pp, info) != PNG_COLOR_TYPE_PALETTE &&
       png_get_valid (pp, info, PNG_INFO_tRNS))
     {
       png_set_expand (pp);
