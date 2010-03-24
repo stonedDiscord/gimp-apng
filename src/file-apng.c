@@ -1030,7 +1030,7 @@ load_image (const gchar  *filename,
                                              delay, "ms");
 
               if (frame_dispose_op == PNG_DISPOSE_OP_PREVIOUS)
-                frame_dispose_op == PNG_DISPOSE_OP_BACKGROUND;
+                frame_dispose_op = PNG_DISPOSE_OP_BACKGROUND;
             }
           else
             {
