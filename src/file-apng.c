@@ -32,6 +32,9 @@
  *   read_frame()                - Read a PNG frame into a layer.
  *   respin_cmap()               - Re-order a Gimp colormap for PNG tRNS
  *   save_image()                - Save the specified image to a PNG file.
+ *   write_frame()               - Write the specified layer to a PNG frame.
+ *   parse_ms_tag()              - Parse milli seconds tag.
+ *   parse_dispose_op_tag()      - Parse dispose_op tag.
  *   save_compression_callback() - Update the image compression level.
  *   save_interlace_update()     - Update the interlacing option.
  *   save_dialog()               - Pop up the save dialog.
@@ -92,6 +95,7 @@ typedef struct
   gint      compression_level;
 #if defined(PNG_APNG_SUPPORTED)
   gboolean  as_animation;
+  guint8    dispose_op;
 #endif
 }
 PngSaveVals;
@@ -145,6 +149,24 @@ static void      read_frame                (gint32            layer,
                                             png_uint_32       frame_x_offset,
                                             png_uint_32       frame_y_offset,
                                             GError          **error);
+static gboolean  write_frame               (gint32            drawable_ID,
+                                            gint              bpp,
+                                            guchar            red,
+                                            guchar            green,
+                                            guchar            blue,
+                                            guchar           *remap,
+                                            gboolean          as_animation,
+                                            png_structp       pp,
+                                            png_infop         info,
+                                            png_uint_32       offx,
+                                            png_uint_32       offy,
+                                            png_uint_16       frame_delay_num,
+                                            png_uint_16       frame_delay_den,
+                                            png_byte          frame_dispose_op,
+                                            png_byte          frame_blend_op,
+                                            GError          **error);
+static gint      parse_ms_tag              (const gchar      *str);
+static gint      parse_dispose_op_tag      (const gchar      *str);
 
 static void      respin_cmap               (png_structp       pp,
                                             png_infop         info,
@@ -1375,26 +1397,20 @@ save_image (const gchar  *filename,
             gint32        orig_image_ID,
             GError      **error)
 {
-  gint i, k,                    /* Looping vars */
+  gint i,                       /* Looping vars */
     bpp = 0,                    /* Bytes per pixel */
-    type,                       /* Type of drawable/layer */
-    num_passes,                 /* Number of interlace passes in file */
-    pass,                       /* Current pass in file */
-    tile_height,                /* Height of tile in GIMP */
-    begin,                      /* Beginning tile row */
-    end,                        /* Ending tile row */
-    num;                        /* Number of rows to load */
+    drawable_type;              /* Type of drawable/layer */
   FILE *fp;                     /* File pointer */
   GimpDrawable *drawable;       /* Drawable for layer */
-  GimpPixelRgn pixel_rgn;       /* Pixel region for layer */
   png_structp pp;               /* PNG read pointer */
   png_infop info;               /* PNG info pointer */
   gint num_colors;              /* Number of colors in colormap */
   gint offx, offy;              /* Drawable offsets from origin */
-  guchar **pixels,              /* Pixel rows */
-   *fixed,                      /* Fixed-up pixel data */
-   *pixel;                      /* Pixel data */
   gdouble xres, yres;           /* GIMP resolution (dpi) */
+  gint32 *layers;               /* Layers */
+  gint nlayers;                 /* Number of Layers */
+  int color_type;               /* PNG color type */
+  int bit_depth;                /* PNG bit depth */
   png_color_16 background;      /* Background color */
   png_time mod_time;            /* Modification time (ie NOW) */
   guchar red, green, blue;      /* Used for palette background */
@@ -1482,66 +1498,44 @@ save_image (const gchar  *filename,
    * Get the drawable for the current image...
    */
 
-  drawable = gimp_drawable_get (drawable_ID);
-  type = gimp_drawable_type (drawable_ID);
-
-  /*
-   * Set the image dimensions, bit depth, interlacing and compression
-   */
-
-  png_set_compression_level (pp, pngvals.compression_level);
-
-  info->width          = drawable->width;
-  info->height         = drawable->height;
-  info->bit_depth      = 8;
-  info->interlace_type = pngvals.interlaced;
-
-  /*
-   * Initialise remap[]
-   */
-  for (i = 0; i < 256; i++)
-    remap[i] = i;
+  layers = gimp_image_get_layers (image_ID, &nlayers);
+  drawable = gimp_drawable_get (layers[0]);
+  drawable_type = gimp_drawable_type (layers[0]);
 
   /*
    * Set color type and remember bytes per pixel count
    */
 
-  switch (type)
+  switch (drawable_type)
     {
     case GIMP_RGB_IMAGE:
-      info->color_type = PNG_COLOR_TYPE_RGB;
+      color_type = PNG_COLOR_TYPE_RGB;
       bpp = 3;
       break;
 
     case GIMP_RGBA_IMAGE:
-      info->color_type = PNG_COLOR_TYPE_RGB_ALPHA;
+      color_type = PNG_COLOR_TYPE_RGB_ALPHA;
       bpp = 4;
       break;
 
     case GIMP_GRAY_IMAGE:
-      info->color_type = PNG_COLOR_TYPE_GRAY;
+      color_type = PNG_COLOR_TYPE_GRAY;
       bpp = 1;
       break;
 
     case GIMP_GRAYA_IMAGE:
-      info->color_type = PNG_COLOR_TYPE_GRAY_ALPHA;
+      color_type = PNG_COLOR_TYPE_GRAY_ALPHA;
       bpp = 2;
       break;
 
     case GIMP_INDEXED_IMAGE:
+      color_type = PNG_COLOR_TYPE_PALETTE;
       bpp = 1;
-      info->color_type = PNG_COLOR_TYPE_PALETTE;
-      info->valid |= PNG_INFO_PLTE;
-      info->palette =
-        (png_colorp) gimp_image_get_colormap (image_ID, &num_colors);
-      info->num_palette = num_colors;
       break;
 
     case GIMP_INDEXEDA_IMAGE:
+      color_type = PNG_COLOR_TYPE_PALETTE;
       bpp = 2;
-      info->color_type = PNG_COLOR_TYPE_PALETTE;
-      /* fix up transparency */
-      respin_cmap (pp, info, remap, image_ID, drawable);
       break;
 
     default:
@@ -1553,15 +1547,48 @@ save_image (const gchar  *filename,
    * Fix bit depths for (possibly) smaller colormap images
    */
 
-  if (png_get_valid (pp, info, PNG_INFO_PLTE))
+  bit_depth = 8;
+  if (color_type == PNG_COLOR_TYPE_PALETTE)
     {
-      if (info->num_palette <= 2)
-        info->bit_depth = 1;
-      else if (info->num_palette <= 4)
-        info->bit_depth = 2;
-      else if (info->num_palette <= 16)
-        info->bit_depth = 4;
+      if (num_colors <= 2)
+        bit_depth = 1;
+      else if (num_colors <= 4)
+        bit_depth = 2;
+      else if (num_colors <= 16)
+        bit_depth = 4;
       /* otherwise the default is fine */
+    }
+
+  /*
+   * Set the image dimensions, bit depth, interlacing and compression
+   */
+
+  png_set_IHDR(pp, info, drawable->width, drawable->height,
+               bit_depth, color_type,
+               pngvals.interlaced, PNG_COMPRESSION_TYPE_BASE,
+               PNG_FILTER_TYPE_BASE);
+  png_set_compression_level (pp, pngvals.compression_level);
+
+  /*
+   * Initialise remap[]
+   */
+  for (i = 0; i < 256; i++)
+    remap[i] = i;
+
+  if (color_type == PNG_COLOR_TYPE_PALETTE)
+    {
+      if (bpp == 1)
+        {
+          png_colorp palette;
+
+          palette = (png_colorp) gimp_image_get_colormap (image_ID, &num_colors),
+          png_set_PLTE (pp, info, palette, num_colors);
+        }
+      else
+        {
+          /* fix up transparency */
+          respin_cmap (pp, info, remap, image_ID, drawable);
+        }
     }
 
   /* All this stuff is optional extras, if the user is aiming for smallest
@@ -1602,6 +1629,8 @@ save_image (const gchar  *filename,
       png_set_gAMA (pp, info, gamma);
     }
 
+  offx = 0;
+  offy = 0;
   if (pngvals.offs)
     {
       gimp_drawable_offsets (drawable_ID, &offx, &offy);
@@ -1662,7 +1691,126 @@ save_image (const gchar  *filename,
   }
 #endif
 
+#if defined(PNG_APNG_SUPPORTED)
+  if (nlayers > 1)
+    {
+      png_uint_32 num_plays;
+      png_byte first_frame_is_hidden;
+
+      num_plays = 0;
+      first_frame_is_hidden = 0;
+      png_set_acTL (pp, info, nlayers, num_plays);
+      png_set_first_frame_is_hidden (pp, info, first_frame_is_hidden);
+    }
+#endif
+
   png_write_info (pp, info);
+
+  /*
+   * Convert unpacked pixels to packed if necessary
+   */
+
+  if (color_type == PNG_COLOR_TYPE_PALETTE && bit_depth < 8)
+    png_set_packing (pp);
+
+#if defined(PNG_APNG_SUPPORTED)
+  if (nlayers > 1)
+    {
+      for (i = nlayers - 1; i >= 0; i--)
+        {
+          gchar        *layer_name;
+          png_uint_16   frame_delay_num;
+          png_uint_16   frame_delay_den;
+          png_byte      frame_dispose_op;
+          png_byte      frame_blend_op;
+          gint          delay;
+          gint          n;
+
+          layer_name = gimp_drawable_get_name (layers[i]);
+          delay = parse_ms_tag (layer_name);
+
+          for (n = 1000; n > 0; n /= 10)
+            {
+              if ((delay % n) == 0)
+                break;
+            }
+
+          frame_delay_num = delay / n;
+          frame_delay_den = 1000 / n;
+          frame_dispose_op = parse_dispose_op_tag (layer_name);
+          frame_blend_op = PNG_BLEND_OP_SOURCE;
+          write_frame (layers[i], bpp, red, green, blue, remap, TRUE,
+                       pp, info, offx, offy,
+                       frame_delay_num, frame_delay_den,
+                       frame_dispose_op, frame_blend_op,
+                       error);
+        }
+    }
+  else
+#endif
+    {
+      write_frame (layers[0], bpp, red, green, blue, remap, FALSE,
+                   pp, info, offx, offy, 0, 0, 0, 0, error);
+    }
+
+  png_write_end (pp, info);
+  png_destroy_write_struct (&pp, &info);
+
+  /*
+   * Done with the file...
+   */
+
+  if (text)
+    {
+      g_free (text->text);
+      g_free (text);
+    }
+
+  fclose (fp);
+
+  return TRUE;
+}
+
+/*
+ * 'write_frame ()' - Write the specified frame.
+ */
+
+static gboolean
+write_frame (gint32        drawable_ID,
+             gint          bpp,
+             guchar        red,
+             guchar        green,
+             guchar        blue,
+             guchar       *remap,
+             gboolean      as_animation,
+             png_structp   pp,
+             png_infop     info,
+             png_uint_32   offx,
+             png_uint_32   offy,
+             png_uint_16   frame_delay_num,
+             png_uint_16   frame_delay_den,
+             png_byte      frame_dispose_op,
+             png_byte      frame_blend_op,
+             GError      **error)
+{
+  gint i, k,                    /* Looping vars */
+    num_passes,                 /* Number of interlace passes in file */
+    pass,                       /* Current pass in file */
+    tile_height,                /* Height of tile in GIMP */
+    begin,                      /* Beginning tile row */
+    end,                        /* Ending tile row */
+    num;                        /* Number of rows to load */
+  GimpDrawable *drawable;       /* Drawable for layer */
+  GimpPixelRgn pixel_rgn;       /* Pixel region for layer */
+  guchar **pixels,              /* Pixel rows */
+   *fixed,                      /* Fixed-up pixel data */
+   *pixel;                      /* Pixel data */
+
+  /*
+   * Get the drawable for the current image...
+   */
+
+  drawable = gimp_drawable_get (drawable_ID);
 
   /*
    * Turn on interlace handling...
@@ -1672,14 +1820,6 @@ save_image (const gchar  *filename,
     num_passes = png_set_interlace_handling (pp);
   else
     num_passes = 1;
-
-  /*
-   * Convert unpacked pixels to packed if necessary
-   */
-
-  if (png_get_color_type (pp, info) == PNG_COLOR_TYPE_PALETTE &&
-      png_get_bit_depth (pp, info) < 8)
-    png_set_packing (pp);
 
   /*
    * Allocate memory for "tile_height" rows and save the image...
@@ -1694,6 +1834,25 @@ save_image (const gchar  *filename,
 
   gimp_pixel_rgn_init (&pixel_rgn, drawable, 0, 0, drawable->width,
                        drawable->height, FALSE, FALSE);
+
+#if defined(PNG_APNG_SUPPORTED)
+  if (as_animation)
+    {
+      gint         offset_x;
+      gint         offset_y;
+      png_uint_32  frame_x_offset;
+      png_uint_32  frame_y_offset;
+
+      gimp_drawable_offsets (drawable_ID, &offset_x, &offset_y);
+      frame_x_offset = offset_x - offx;
+      frame_y_offset = offset_y - offy;
+      png_write_frame_head (pp, info, (png_bytepp)&pixel,
+                            drawable->width, drawable->height,
+                            frame_x_offset, frame_y_offset,
+                            frame_delay_num, frame_delay_den,
+                            frame_dispose_op, frame_blend_op);
+    }
+#endif
 
   for (pass = 0; pass < num_passes; pass++)
     {
@@ -1770,28 +1929,75 @@ save_image (const gchar  *filename,
         }
     }
 
-  png_write_end (pp, info);
-  png_destroy_write_struct (&pp, &info);
-
   g_free (pixel);
   g_free (pixels);
 
-  /*
-   * Done with the file...
-   */
-
-  if (text)
+#if defined(PNG_APNG_SUPPORTED)
+  if (as_animation)
     {
-      g_free (text->text);
-      g_free (text);
+      png_write_frame_tail (pp, info);
     }
-
-  free (pp);
-  free (info);
-
-  fclose (fp);
+#endif
 
   return TRUE;
+}
+
+static gint
+parse_ms_tag (const gchar *str)
+{
+  gint sum = 0;
+  gint offset = 0;
+  gint length;
+
+  length = strlen(str);
+
+find_another_bra:
+
+  while ((offset < length) && (str[offset] != '('))
+    offset++;
+
+  if (offset >= length)
+    return(-1);
+
+  if (! g_ascii_isdigit (str[++offset]))
+    goto find_another_bra;
+
+  do
+    {
+      sum *= 10;
+      sum += str[offset] - '0';
+      offset++;
+    }
+  while ((offset < length) && (g_ascii_isdigit (str[offset])));
+
+  if (length - offset <= 2)
+    return(-3);
+
+  if ((g_ascii_toupper (str[offset]) != 'M')
+      || (g_ascii_toupper (str[offset+1]) != 'S'))
+    return -4;
+
+  return sum;
+}
+
+static gint
+parse_dispose_op_tag (const gchar *str)
+{
+  gint offset = 0;
+  gint length;
+
+  length = strlen(str);
+
+  while ((offset + 9) <= length)
+    {
+      if (strncmp(&str[offset], "(combine)", 9) == 0)
+        return PNG_DISPOSE_OP_NONE;
+      if (strncmp(&str[offset], "(replace)", 9) == 0)
+        return PNG_DISPOSE_OP_BACKGROUND;
+      offset++;
+    }
+
+  return pngvals.dispose_op;
 }
 
 static gboolean
