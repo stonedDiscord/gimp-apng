@@ -90,6 +90,9 @@ typedef struct
   gboolean  comment;
   gboolean  save_transp_pixels;
   gint      compression_level;
+#if defined(PNG_APNG_SUPPORTED)
+  gboolean  as_animation;
+#endif
 }
 PngSaveVals;
 
@@ -187,7 +190,10 @@ static const PngSaveVals defaults =
   TRUE,
   TRUE,
   TRUE,
-  9
+  9,
+#if defined(PNG_APNG_SUPPORTED)
+  FALSE
+#endif
 };
 
 static PngSaveVals pngvals;
@@ -456,32 +462,11 @@ run (const gchar      *name,
 
       load_defaults ();
 
-      /*  eventually export the image */
       switch (run_mode)
         {
         case GIMP_RUN_INTERACTIVE:
-        case GIMP_RUN_WITH_LAST_VALS:
           gimp_ui_init (PLUG_IN_BINARY, FALSE);
-          export = gimp_export_image (&image_ID, &drawable_ID, NULL,
-                                      (GIMP_EXPORT_CAN_HANDLE_RGB |
-                                       GIMP_EXPORT_CAN_HANDLE_GRAY |
-                                       GIMP_EXPORT_CAN_HANDLE_INDEXED |
-                                       GIMP_EXPORT_CAN_HANDLE_ALPHA));
 
-          if (export == GIMP_EXPORT_CANCEL)
-            {
-              *nreturn_vals = 1;
-              values[0].data.d_status = GIMP_PDB_CANCEL;
-              return;
-            }
-          break;
-        default:
-          break;
-        }
-
-      switch (run_mode)
-        {
-        case GIMP_RUN_INTERACTIVE:
           /*
            * Possibly retrieve data...
            */
@@ -551,6 +536,38 @@ run (const gchar      *name,
           gimp_get_data (SAVE_PROC, &pngvals);
           break;
 
+        default:
+          break;
+        }
+
+      /*  eventually export the image */
+      switch (run_mode)
+        {
+        case GIMP_RUN_INTERACTIVE:
+        case GIMP_RUN_WITH_LAST_VALS:
+          {
+            GimpExportCapabilities capabilities =
+              GIMP_EXPORT_CAN_HANDLE_RGB |
+              GIMP_EXPORT_CAN_HANDLE_GRAY |
+              GIMP_EXPORT_CAN_HANDLE_INDEXED |
+              GIMP_EXPORT_CAN_HANDLE_ALPHA;
+
+#if defined(PNG_APNG_SUPPORTED)
+            if (pngvals.as_animation)
+              capabilities |= GIMP_EXPORT_CAN_HANDLE_LAYERS;
+#endif
+
+            export = gimp_export_image (&image_ID, &drawable_ID, NULL,
+                                        capabilities);
+
+            if (export == GIMP_EXPORT_CANCEL)
+              {
+                *nreturn_vals = 1;
+                values[0].data.d_status = GIMP_PDB_CANCEL;
+                return;
+              }
+          }
+          break;
         default:
           break;
         }
