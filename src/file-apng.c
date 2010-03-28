@@ -214,7 +214,8 @@ static const PngSaveVals defaults =
   TRUE,
   9,
 #if defined(PNG_APNG_SUPPORTED)
-  FALSE
+  FALSE,
+  PNG_DISPOSE_OP_NONE
 #endif
 };
 
