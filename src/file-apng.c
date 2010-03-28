@@ -1085,6 +1085,7 @@ load_image (const gchar  *filename,
 
           layer = gimp_layer_new (image, framename, frame_width, frame_height,
                                   layer_type, 100, GIMP_NORMAL_MODE);
+          g_free (framename);
           gimp_image_add_layer (image, layer, 0);
 
           if (offset_x != 0 && offset_y != 0)
