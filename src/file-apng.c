@@ -165,8 +165,10 @@ static gboolean  write_frame               (gint32            drawable_ID,
                                             png_byte          frame_dispose_op,
                                             png_byte          frame_blend_op,
                                             GError          **error);
+#if defined(PNG_APNG_SUPPORTED)
 static gint      parse_ms_tag              (const gchar      *str);
 static gint      parse_dispose_op_tag      (const gchar      *str);
+#endif
 
 static void      respin_cmap               (png_structp       pp,
                                             png_infop         info,
@@ -1943,6 +1945,7 @@ write_frame (gint32        drawable_ID,
   return TRUE;
 }
 
+#if defined(PNG_APNG_SUPPORTED)
 static gint
 parse_ms_tag (const gchar *str)
 {
@@ -2000,6 +2003,7 @@ parse_dispose_op_tag (const gchar *str)
 
   return pngvals.dispose_op;
 }
+#endif
 
 static gboolean
 ia_has_transparent_pixels (GimpDrawable *drawable)
