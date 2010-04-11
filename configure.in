@@ -117,6 +117,7 @@ fi
 AC_CONFIG_FILES([
 Makefile
 src/Makefile
+ui/Makefile
 po/Makefile.in
 help/Makefile
 help/en/Makefile
