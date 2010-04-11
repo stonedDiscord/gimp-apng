@@ -1712,7 +1712,7 @@ save_image (const gchar  *filename,
       png_uint_32 num_plays;
       png_byte first_frame_is_hidden;
 
-      num_plays = 0;
+      num_plays = pngvals.num_plays;
       first_frame_is_hidden = 0;
       png_set_acTL (pp, info, nlayers, num_plays);
       png_set_first_frame_is_hidden (pp, info, first_frame_is_hidden);
