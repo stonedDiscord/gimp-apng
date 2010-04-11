@@ -2464,9 +2464,15 @@ load_gui_defaults (PngSaveGui *pg)
 {
   load_defaults ();
 
+#if ((GTK_MAJOR_VERSION > 2) || (GTK_MAJOR_VERSION == 2 && GTK_MAJOR_VERSION > 18))
 #define SET_ACTIVE(field) \
   if (gtk_widget_is_sensitive (pg->field)) \
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (pg->field), pngvals.field)
+#else
+#define SET_ACTIVE(field) \
+  if (GTK_WIDGET_IS_SENSITIVE (pg->field)) \
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (pg->field), pngvals.field)
+#endif
 
   SET_ACTIVE (interlaced);
   SET_ACTIVE (bkgd);
