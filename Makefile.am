@@ -1,6 +1,6 @@
 #
 
-SUBDIRS = po src help
+SUBDIRS = po src ui help
 
 EXTRA_DIST = \
 	BUGS			\
