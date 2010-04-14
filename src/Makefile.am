@@ -9,12 +9,20 @@ file_apng_SOURCES = \
 	file-apng.c
 
 file_apng_CPPFLAGS = \
+	-I$(top_srcdir)		\
+	$(PNG_CFLAGS)		\
+	$(GIMP_CFLAGS)		\
+	-I$(includedir)		\
 	-DLOCALEDIR=\""$(LOCALEDIR)"\"		\
 	-DDATADIR=\""$(DATADIR)"\"
 
-INCLUDES =\
+file_apng_LDADD = \
+	$(PNG_LIBS)	\
+	$(GIMP_LIBS)
+
+AM_CPPFLAGS =\
 	-I$(top_srcdir)		\
-	@GIMP_CFLAGS@		\
+	$(GIMP_CFLAGS)		\
 	-I$(includedir)
 
 LDADD = $(GIMP_LIBS)

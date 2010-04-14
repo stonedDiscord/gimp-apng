@@ -28,10 +28,21 @@ AM_CONFIG_HEADER(config.h)
 
 AM_INIT_AUTOMAKE(no-define)
 
+dnl
+dnl Set for the libpng here
+dnl
+AC_ARG_WITH([libpng-include],
+  [AS_HELP_STRING([--with-libpng-include=DIR],
+                  [location of PNG library headers])],,)
+AC_ARG_WITH([libpng-lib],
+  [AS_HELP_STRING([--with-libpng-lib=DIR],
+                  [location of PNG library binary])],,)
+
 AC_ISC_POSIX
 AC_PROG_CC
 AM_PROG_CC_STDC
 AC_HEADER_STDC
+PKG_PROG_PKG_CONFIG
 
 
 ACLOCAL="$ACLOCAL $ACLOCAL_FLAGS"
@@ -112,6 +123,38 @@ if test "x$have_gimp_2_3" != "xyes"; then
   CPPFLAGS="$CPPFLAGS -DGIMP_DISABLE_DEPRECATED"
 fi
 
+dnl
+dnl Set for libpng
+dnl
+if test "x$with_libpng_lib" = "x" -a "x$with_libpng_include" = "x" ; then
+  PKG_CHECK_MODULES(PNG, libpng)
+else
+  if test "x$with_libpng_lib" != "x" ; then
+    _save_LIBS="$LIBS"
+    LIBS="-L$with_libpng_lib -lpng"
+    AC_CHECK_LIB([png], [png_init_io], [PNG_LIBS="$LIBS"],
+      [AC_MSG_ERROR([PNG library not found at $with_libpng_lib])])
+    LIBS="$_save_LIBS"
+  else
+    AC_CHECK_LIB([png], [png_init_io], [PNG_LIBS="-lpng"],
+      [AC_MSG_ERROR([PNG library not found])])
+  fi
+  if test "x$with_libpng_include" != "x" ; then
+    _save_INCLUDES="$INCLUDES"
+    INCLUDES="-I$with_libpng_include"
+    AC_CHECK_HEADERS([png.h], [PNG_CFLAGS="$INCLUDES"],
+      [AC_MSG_ERROR([PNG header not found at $with_libpng_include])])
+    INCLUDES="$_save_INCLUDES"
+  else
+    AC_CHECK_HEADERS([png.h], [PNG_CFLAGS=""],
+      [AC_MSG_ERROR([PNG header not found])])
+  fi
+fi
+_save_LIBS="$LIBS"
+LIBS="$PNG_LIBS"
+AC_CHECK_LIB([png], [png_get_acTL], ,
+  [AC_MSG_ERROR([PNG library doesn't have APNG support])])
+LIBS="$_save_LIBS"
 
 
 AC_CONFIG_FILES([

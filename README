@@ -5,6 +5,21 @@ Copyright (C) 2010  Daisuke Nishikawa <daisuken@users.sourceforge.net>
 
 This package is Animated PNG (APNG) plug-in for GIMP 2.x.
 
+Quick build notes
+=================
+
+You need to have installed *patched* libpng.
+Libpng can be downloaded from
+	http://www.libpng.org/pub/png/libpng.html
+	http://sourceforge.net/projects/libpng/
+
+And you can get APNG patch from
+	http://sourceforge.net/projects/libpng-apng/
+
+Also you need to have installed GIMP version 2.4 or newer (2.6 or newer is
+recommended) and GTK+ version 2.12 or newer.
+
+
 The program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 3, or any later version.
