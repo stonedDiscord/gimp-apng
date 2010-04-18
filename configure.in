@@ -29,6 +29,20 @@ AM_CONFIG_HEADER(config.h)
 AM_INIT_AUTOMAKE(no-define)
 
 dnl
+dnl Set the general plugins install policy here
+dnl
+AC_ARG_WITH([plugins-install],
+  [AS_HELP_STRING([--with-plugins-install=system|user|prefix],
+                  [Policy for plugins install. Default: user.])],
+        [case "${withval}" in
+          user) PLUGINS_INSTALL_POLICY=user ;;
+          system) PLUGINS_INSTALL_POLICY=system ;;
+          prefix) PLUGINS_INSTALL_POLICY=prefix ;;
+          *)  AC_MSG_ERROR([bad value ${withval} for --with-plugins-install]) ;;
+         esac
+        ], [PLUGINS_INSTALL_POLICY=user])
+
+dnl
 dnl Set for the libpng here
 dnl
 AC_ARG_WITH([libpng-include],
@@ -71,6 +85,8 @@ AC_SUBST(GIMP_LIBS)
 
 GIMP_LIBDIR=`$PKG_CONFIG --variable=gimplibdir gimp-2.0`
 AC_SUBST(GIMP_LIBDIR)
+GIMP_DATADIR=`$PKG_CONFIG --variable=gimpdatadir gimp-2.0`
+AC_SUBST(GIMP_DATADIR)
 
 
 dnl i18n stuff
@@ -156,6 +172,22 @@ AC_CHECK_LIB([png], [png_get_acTL], ,
   [AC_MSG_ERROR([PNG library doesn't have APNG support])])
 LIBS="$_save_LIBS"
 
+dnl
+dnl Set the plugins install directory
+dnl
+if test "x$PLUGINS_INSTALL_POLICY" = "xuser"; then
+  GIMP_USER_VERSION=`$PKG_CONFIG --modversion gimp-2.0 | sed -e 's/^\([0-9]\+\.[0-9]\+\)\.[0-9]\+/\\1/'`
+  PLUGINDIR="$HOME/.gimp-$GIMP_USER_VERSION"
+  PLUGINDATADIR="\$(PLUGINDIR)"
+elif test "x$PLUGINS_INSTALL_POLICY" = "xsystem"; then
+  PLUGINDIR="\$(GIMP_LIBDIR)"
+  PLUGINDATADIR="\$(GIMP_DATADIR)"
+elif test "x$PLUGINS_INSTALL_POLICY" = "xprefix"; then
+  PLUGINDIR="\${prefix}"
+  PLUGINDATADIR="\$(DATADIR)"
+fi
+AC_SUBST(PLUGINDIR)
+AC_SUBST(PLUGINDATADIR)
 
 AC_CONFIG_FILES([
 Makefile

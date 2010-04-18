@@ -2,7 +2,7 @@
 
 bin_PROGRAMS = file-apng
 
-bindir = $(GIMP_LIBDIR)/plug-ins
+bindir = $(PLUGINDIR)/plug-ins
 
 file_apng_SOURCES = \
 	plugin-intl.h	\
