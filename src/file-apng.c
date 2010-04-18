@@ -95,6 +95,7 @@ typedef struct
   gint      compression_level;
 #if defined(PNG_APNG_SUPPORTED)
   gboolean  as_animation;
+  gboolean  first_frame_is_hidden;
   guint32   num_plays;
   guint8    dispose_op;
 #endif
@@ -116,6 +117,7 @@ typedef struct
   GtkObject *compression_level;
 #if defined(PNG_APNG_SUPPORTED)
   GtkWidget *as_animation;
+  GtkWidget *first_frame_is_hidden;
   GtkObject *num_plays;
 #endif
 }
@@ -229,6 +231,8 @@ static const PngSaveVals defaults =
   9,
 #if defined(PNG_APNG_SUPPORTED)
   FALSE,
+  FALSE,
+  0,
   PNG_DISPOSE_OP_NONE
 #endif
 };
@@ -1713,7 +1717,7 @@ save_image (const gchar  *filename,
       png_byte first_frame_is_hidden;
 
       num_plays = pngvals.num_plays;
-      first_frame_is_hidden = 0;
+      first_frame_is_hidden = pngvals.first_frame_is_hidden;
       png_set_acTL (pp, info, nlayers, num_plays);
       png_set_first_frame_is_hidden (pp, info, first_frame_is_hidden);
     }
@@ -2281,6 +2285,9 @@ save_dialog (gint32    image_ID,
   pg.as_animation = toggle_button_init (builder, "as-animation",
                                         pngvals.as_animation,
                                         &pngvals.as_animation);
+  pg.first_frame_is_hidden = toggle_button_init (builder, "first-frame-is-hidden",
+                                                 pngvals.first_frame_is_hidden,
+                                                 &pngvals.first_frame_is_hidden);
 #endif
 
   /* Comment toggle */
