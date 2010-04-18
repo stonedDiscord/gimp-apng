@@ -98,6 +98,7 @@ typedef struct
   gboolean  first_frame_is_hidden;
   guint32   num_plays;
   guint8    dispose_op;
+  guint8    blend_op;
 #endif
 }
 PngSaveVals;
@@ -233,7 +234,8 @@ static const PngSaveVals defaults =
   FALSE,
   FALSE,
   0,
-  PNG_DISPOSE_OP_NONE
+  PNG_DISPOSE_OP_NONE,
+  PNG_BLEND_OP_SOURCE
 #endif
 };
 
@@ -1757,7 +1759,7 @@ save_image (const gchar  *filename,
           frame_delay_num = delay / n;
           frame_delay_den = 1000 / n;
           frame_dispose_op = parse_dispose_op_tag (layer_name);
-          frame_blend_op = PNG_BLEND_OP_SOURCE;
+          frame_blend_op = pngvals.blend_op;
           write_frame (layers[i], bpp, red, green, blue, remap, TRUE,
                        pp, info, offx, offy,
                        frame_delay_num, frame_delay_den,
