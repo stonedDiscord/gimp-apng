@@ -77,7 +77,7 @@
 
 #define DEFAULT_GAMMA          2.20
 
-#define PNG_DEFAULTS_PARASITE  "png-save-defaults"
+#define PNG_DEFAULTS_PARASITE  "apng-save-defaults"
 
 /*
  * Structures...
