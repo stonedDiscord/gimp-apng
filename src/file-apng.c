@@ -33,6 +33,7 @@
  *   respin_cmap()               - Re-order a Gimp colormap for PNG tRNS
  *   save_image()                - Save the specified image to a PNG file.
  *   write_frame()               - Write the specified layer to a PNG frame.
+ *   parse_delay_tag()           - Parse delay tag.
  *   parse_ms_tag()              - Parse milli seconds tag.
  *   parse_dispose_op_tag()      - Parse dispose_op tag.
  *   save_compression_callback() - Update the image compression level.
@@ -97,6 +98,8 @@ typedef struct
   gboolean  as_animation;
   gboolean  first_frame_is_hidden;
   guint32   num_plays;
+  guint16   delay_num;
+  guint16   delay_den;
   guint8    dispose_op;
   guint8    blend_op;
 #endif
@@ -174,6 +177,9 @@ static gboolean  write_frame               (gint32            drawable_ID,
                                             png_byte          frame_blend_op,
                                             GError          **error);
 #if defined(PNG_APNG_SUPPORTED)
+static void      parse_delay_tag           (png_uint_16      *delay_num,
+                                            png_uint_16      *delay_den,
+                                            const gchar      *str);
 static gint      parse_ms_tag              (const gchar      *str);
 static gint      parse_dispose_op_tag      (const gchar      *str);
 #endif
@@ -234,6 +240,8 @@ static const PngSaveVals defaults =
   FALSE,
   FALSE,
   0,
+  1,
+  100,
   PNG_DISPOSE_OP_NONE,
   PNG_BLEND_OP_SOURCE
 #endif
@@ -1744,20 +1752,9 @@ save_image (const gchar  *filename,
           png_uint_16   frame_delay_den;
           png_byte      frame_dispose_op;
           png_byte      frame_blend_op;
-          gint          delay;
-          gint          n;
 
           layer_name = gimp_drawable_get_name (layers[i]);
-          delay = parse_ms_tag (layer_name);
-
-          for (n = 1000; n > 0; n /= 10)
-            {
-              if ((delay % n) == 0)
-                break;
-            }
-
-          frame_delay_num = delay / n;
-          frame_delay_den = 1000 / n;
+          parse_delay_tag (&frame_delay_num, &frame_delay_den, layer_name);
           frame_dispose_op = parse_dispose_op_tag (layer_name);
           frame_blend_op = pngvals.blend_op;
           write_frame (layers[i], bpp, red, green, blue, remap, TRUE,
@@ -1964,7 +1961,33 @@ write_frame (gint32        drawable_ID,
 }
 
 #if defined(PNG_APNG_SUPPORTED)
-static gint
+static void
+parse_delay_tag (png_uint_16 *delay_num,
+                 png_uint_16 *delay_den,
+                 const gchar *str)
+{
+  gint delay;
+  gint n;
+
+  delay = parse_ms_tag (str);
+  if (delay < 0)
+    {
+      *delay_num = pngvals.delay_num;
+      *delay_den = pngvals.delay_den;
+      return;
+    }
+
+  for (n = 1000; n > 0; n /= 10)
+    {
+      if ((delay % n) == 0)
+        break;
+    }
+
+  *delay_num = delay / n;
+  *delay_den = 1000 / n;
+}
+
+static int
 parse_ms_tag (const gchar *str)
 {
   gint sum = 0;
