@@ -243,7 +243,7 @@ static const PngSaveVals defaults =
   1,
   100,
   PNG_DISPOSE_OP_NONE,
-  PNG_BLEND_OP_SOURCE
+  PNG_BLEND_OP_OVER
 #endif
 };
 
