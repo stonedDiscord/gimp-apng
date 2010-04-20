@@ -3,8 +3,11 @@
   <!-- interface-requires gtk+ 2.12 -->
   <!-- interface-naming-policy project-wide -->
   <object class="GtkAdjustment" id="compression-level">
-    <property name="value">9</property>
     <property name="upper">9</property>
+
+    <!-- NOTE: Set value _after_ upper so the value don't get clamped -->
+    <property name="value">9</property>
+
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
   </object>
