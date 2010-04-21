@@ -323,6 +323,18 @@ query (void)
     FULL_CONFIG_ARGS
   };
 
+  gchar *help_path;
+  gchar *help_uri;
+
+  gimp_plugin_domain_register (GETTEXT_PACKAGE, LOCALEDIR);
+
+  help_path = g_build_filename (DATADIR, "help", NULL);
+  help_uri = g_filename_to_uri (help_path, NULL, NULL);
+  g_free (help_path);
+
+  gimp_plugin_help_register ("http://sourceforge.net/projects/gimp-apng/",
+                             help_uri);
+
   gimp_install_procedure (LOAD_PROC,
                           "Loads files in PNG+APNG file format",
                           "This plug-in loads Portable Network Graphics "
