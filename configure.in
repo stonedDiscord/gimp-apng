@@ -85,8 +85,6 @@ AC_SUBST(GIMP_LIBS)
 
 GIMP_LIBDIR=`$PKG_CONFIG --variable=gimplibdir gimp-2.0`
 AC_SUBST(GIMP_LIBDIR)
-GIMP_DATADIR=`$PKG_CONFIG --variable=gimpdatadir gimp-2.0`
-AC_SUBST(GIMP_DATADIR)
 
 
 dnl i18n stuff
@@ -178,16 +176,12 @@ dnl
 if test "x$PLUGINS_INSTALL_POLICY" = "xuser"; then
   GIMP_USER_VERSION=`$PKG_CONFIG --modversion gimp-2.0 | sed -e 's/^\([0-9]\+\.[0-9]\+\)\.[0-9]\+/\\1/'`
   PLUGINDIR="$HOME/.gimp-$GIMP_USER_VERSION"
-  PLUGINDATADIR="\$(PLUGINDIR)"
 elif test "x$PLUGINS_INSTALL_POLICY" = "xsystem"; then
   PLUGINDIR="\$(GIMP_LIBDIR)"
-  PLUGINDATADIR="\$(GIMP_DATADIR)"
 elif test "x$PLUGINS_INSTALL_POLICY" = "xprefix"; then
-  PLUGINDIR="\${prefix}"
-  PLUGINDATADIR="\$(DATADIR)"
+  PLUGINDIR="\$(pkglibdir)"
 fi
 AC_SUBST(PLUGINDIR)
-AC_SUBST(PLUGINDATADIR)
 
 AC_CONFIG_FILES([
 Makefile

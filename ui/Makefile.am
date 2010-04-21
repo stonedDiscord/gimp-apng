@@ -1,4 +1,4 @@
-uidatadir = $(PLUGINDATADIR)/ui/plug-ins
+uidatadir = $(DATADIR)/ui/plug-ins
 
 uidata_DATA = \
 	plug-in-file-apng.ui

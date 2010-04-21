@@ -2262,14 +2262,8 @@ save_dialog (gint32    image_ID,
 
   /* GtkBuilder init */
   builder = gtk_builder_new ();
-  ui_file = gimp_personal_rc_file ("ui/plug-ins/plug-in-file-apng.ui");
-  if (! g_file_test (ui_file, G_FILE_TEST_EXISTS))
-    {
-      g_free (ui_file);
-      ui_file = g_build_filename (gimp_data_directory (),
-                                  "ui/plug-ins/plug-in-file-apng.ui",
-                                  NULL);
-    }
+  ui_file = g_build_filename (DATADIR, "ui/plug-ins/plug-in-file-apng.ui",
+                              NULL);
 
   if (! gtk_builder_add_from_file (builder, ui_file, &error))
     {
