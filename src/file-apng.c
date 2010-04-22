@@ -1130,6 +1130,9 @@ load_image (const gchar  *filename,
           switch (previous_dispose_op)
             {
             case PNG_DISPOSE_OP_NONE:
+              framename_ptr = framename;
+              framename = g_strconcat (framename, " (combine)", NULL);
+              g_free (framename_ptr);
               break;
             case PNG_DISPOSE_OP_BACKGROUND:
               framename_ptr = framename;
