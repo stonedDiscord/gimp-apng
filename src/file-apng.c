@@ -334,6 +334,7 @@ query (void)
 
   gimp_plugin_help_register ("http://sourceforge.net/projects/gimp-apng/",
                              help_uri);
+  g_free (help_uri);
 
   gimp_install_procedure (LOAD_PROC,
                           "Loads files in PNG+APNG file format",
