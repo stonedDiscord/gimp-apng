@@ -1,9 +1,11 @@
 APNG Plug-In for GIMP
 =====================
 
-Copyright (C) 2010  Daisuke Nishikawa <daisuken@users.sourceforge.net>
-
 This package is Animated PNG (APNG) plug-in for GIMP 2.x.
+
+APNG plug-in provides Animated PNG (APNG) image file load and save modules
+for the GIMP. This plug-in works both APNG and PNG.
+
 
 Quick build notes
 =================
@@ -19,12 +21,18 @@ And you can get APNG patch from
 Also you need to have installed GIMP version 2.4 or newer (2.6 or newer is
 recommended) and GTK+ version 2.12 or newer.
 
+For installation instructions, see the file INSTALL.
 
-The program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3, or any later version.
-See the file COPYING for copying permission. For installation
-instructions, see the file INSTALL.
+
+Information
+===========
+
+If an image has multiple layers and "As animation" is checked in save dialog,
+the image is saved as APNG. Otherwise the image is saved as PNG.
+
+Note, APNG-files usually have the filename-suffix ".png", the MIME type
+"image/png" and same signature/magic number as PNG is handled by PNG plug-in
+in the GIMP.
 
 Additional information can be found at:
 
