@@ -7,3 +7,5 @@ to have the following packages (or newer versions) installed:
 
 These are only the additional requirements if you want to compile from
 the git repository.
+
+The UI file contains a user interface file which you can edit in glade.
