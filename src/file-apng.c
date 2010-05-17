@@ -1544,8 +1544,8 @@ save_image (const gchar  *filename,
    */
 
   layers = gimp_image_get_layers (image_ID, &nlayers);
-  drawable = gimp_drawable_get (layers[0]);
-  drawable_type = gimp_drawable_type (layers[0]);
+  drawable = gimp_drawable_get (layers[nlayers - 1]);
+  drawable_type = gimp_drawable_type (layers[nlayers - 1]);
 
   /*
    * Set color type and remember bytes per pixel count
