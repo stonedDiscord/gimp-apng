@@ -2415,7 +2415,11 @@ load_defaults (void)
 
       gimp_parasite_free (parasite);
 
-      num_fields = sscanf (def_str, "%d %d %d %d %d %d %d %d %d",
+      num_fields = sscanf (def_str, "%d %d %d %d %d %d %d %d %d"
+#if defined(PNG_APNG_SUPPORTED)
+                           " %d %d %u %u %u %u %u"
+#endif
+                           ,
                            &tmpvals.interlaced,
                            &tmpvals.bkgd,
                            &tmpvals.gama,
@@ -2424,11 +2428,26 @@ load_defaults (void)
                            &tmpvals.time,
                            &tmpvals.comment,
                            &tmpvals.save_transp_pixels,
-                           &tmpvals.compression_level);
+                           &tmpvals.compression_level
+#if defined(PNG_APNG_SUPPORTED)
+                           ,
+                           &tmpvals.as_animation,
+                           &tmpvals.first_frame_is_hidden,
+                           &tmpvals.num_plays,
+                           &tmpvals.delay_num,
+                           &tmpvals.delay_den,
+                           &tmpvals.dispose_op,
+                           &tmpvals.blend_op
+#endif
+                           );
 
       g_free (def_str);
 
+#if defined(PNG_APNG_SUPPORTED)
+      if (num_fields == 16)
+#else
       if (num_fields == 9)
+#endif
         {
           memcpy (&pngvals, &tmpvals, sizeof (tmpvals));
           return;
@@ -2444,7 +2463,11 @@ save_defaults (void)
   GimpParasite *parasite;
   gchar        *def_str;
 
-  def_str = g_strdup_printf ("%d %d %d %d %d %d %d %d %d",
+  def_str = g_strdup_printf ("%d %d %d %d %d %d %d %d %d"
+#if defined(PNG_APNG_SUPPORTED)
+                             " %d %d %u %u %u %u %u"
+#endif
+                             ,
                              pngvals.interlaced,
                              pngvals.bkgd,
                              pngvals.gama,
@@ -2453,7 +2476,18 @@ save_defaults (void)
                              pngvals.time,
                              pngvals.comment,
                              pngvals.save_transp_pixels,
-                             pngvals.compression_level);
+                             pngvals.compression_level
+#if defined(PNG_APNG_SUPPORTED)
+                             ,
+                             pngvals.as_animation,
+                             pngvals.first_frame_is_hidden,
+                             pngvals.num_plays,
+                             pngvals.delay_num,
+                             pngvals.delay_den,
+                             pngvals.dispose_op,
+                             pngvals.blend_op
+#endif
+                             );
 
   parasite = gimp_parasite_new (PNG_DEFAULTS_PARASITE,
                                 GIMP_PARASITE_PERSISTENT,
@@ -2488,11 +2522,19 @@ load_gui_defaults (PngSaveGui *pg)
   SET_ACTIVE (time);
   SET_ACTIVE (comment);
   SET_ACTIVE (save_transp_pixels);
+#if defined(PNG_APNG_SUPPORTED)
+  SET_ACTIVE (as_animation);
+  SET_ACTIVE (first_frame_is_hidden);
+#endif
 
 #undef SET_ACTIVE
 
   gtk_adjustment_set_value (GTK_ADJUSTMENT (pg->compression_level),
                             pngvals.compression_level);
+#if defined(PNG_APNG_SUPPORTED)
+  gtk_adjustment_set_value (GTK_ADJUSTMENT (pg->num_plays),
+                            pngvals.num_plays);
+#endif
 }
 
 #if ((GIMP_MAJOR_VERSION < 2) || (GIMP_MAJOR_VERSION == 2 && GIMP_MINOR_VERSION < 7))
