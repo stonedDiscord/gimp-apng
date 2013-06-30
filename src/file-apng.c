@@ -770,6 +770,19 @@ on_read_error (png_structp png_ptr, png_const_charp error_msg)
   longjmp (png_jmpbuf (png_ptr), 1);
 }
 
+static int
+get_bit_depth_for_palette (int num_palette)
+{
+  if (num_palette <= 2)
+    return 1;
+  else if (num_palette <= 4)
+    return 2;
+  else if (num_palette <= 16)
+    return 4;
+  else
+    return 8;
+}
+
 /*
  * 'load_image()' - Load a PNG image into a new image window.
  */
