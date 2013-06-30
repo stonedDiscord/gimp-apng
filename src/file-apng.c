@@ -29,6 +29,7 @@
  *   query()                     - Respond to a plug-in query...
  *   run()                       - Run the plug-in...
  *   load_image()                - Load a PNG image into a new image window.
+ *   offsets_dialog()            - Asks the user about offsets when loading.
  *   read_frame()                - Read a PNG frame into a layer.
  *   respin_cmap()               - Re-order a Gimp colormap for PNG tRNS
  *   save_image()                - Save the specified image to a PNG file.
@@ -71,6 +72,7 @@
 #define GET_DEFAULTS_PROC      "file-apng-get-defaults"
 #define SET_DEFAULTS_PROC      "file-apng-set-defaults"
 #define PLUG_IN_BINARY         "file-apng"
+#define PLUG_IN_ROLE           "gimp-file-apng"
 
 #define PLUG_IN_VERSION        "0.2.0 - 16 May 2010"
 #define SCALE_WIDTH            125
@@ -196,6 +198,9 @@ static gboolean  save_dialog               (gint32            image_ID,
 static void      save_dialog_response      (GtkWidget        *widget,
                                             gint              response_id,
                                             gpointer          data);
+
+static gboolean  offsets_dialog            (gint              offset_x,
+                                            gint              offset_y);
 
 static gboolean  ia_has_transparent_pixels (GimpDrawable     *drawable);
 
@@ -1277,6 +1282,70 @@ load_image (const gchar  *filename,
   fclose (fp);
 
   return image;
+}
+
+/*
+ * 'offsets_dialog ()' - Asks the user about offsets when loading.
+ */
+static gboolean
+offsets_dialog (gint offset_x,
+                gint offset_y)
+{
+  GtkWidget *dialog;
+  GtkWidget *hbox;
+  GtkWidget *image;
+  GtkWidget *label;
+  gchar     *message;
+  gboolean   run;
+
+  gimp_ui_init (PLUG_IN_BINARY, FALSE);
+
+  dialog = gimp_dialog_new (_("Apply PNG Offset"), PLUG_IN_ROLE,
+                            NULL, 0,
+                            gimp_standard_help_func, LOAD_PROC,
+
+                            _("Ignore PNG offset"),         GTK_RESPONSE_NO,
+                            _("Apply PNG offset to layer"), GTK_RESPONSE_YES,
+
+                            NULL);
+
+  gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_YES);
+  gtk_dialog_set_alternative_button_order (GTK_DIALOG (dialog),
+                                           GTK_RESPONSE_YES,
+                                           GTK_RESPONSE_NO,
+                                           -1);
+
+  gimp_window_set_transient (GTK_WINDOW (dialog));
+  gtk_window_set_resizable (GTK_WINDOW (dialog), FALSE);
+
+  hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
+  gtk_container_set_border_width (GTK_CONTAINER (hbox), 12);
+  gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG (dialog))),
+                      hbox, FALSE, FALSE, 0);
+  gtk_widget_show (hbox);
+
+  image = gtk_image_new_from_stock (GIMP_STOCK_QUESTION, GTK_ICON_SIZE_DIALOG);
+  gtk_misc_set_alignment (GTK_MISC (image), 0.5, 0.0);
+  gtk_box_pack_start (GTK_BOX (hbox), image, FALSE, FALSE, 0);
+  gtk_widget_show (image);
+
+  message = g_strdup_printf (_("The PNG image you are importing specifies an "
+                               "offset of %d, %d. Do you want to apply "
+                               "this offset to the layer?"),
+                             offset_x, offset_y);
+  label = gtk_label_new (message);
+  gtk_misc_set_alignment (GTK_MISC (label), 0.5, 0.0);
+  gtk_label_set_line_wrap (GTK_LABEL (label), TRUE);
+  gtk_box_pack_start (GTK_BOX (hbox), label, TRUE, TRUE, 0);
+  gtk_widget_show (label);
+
+  gtk_widget_show (dialog);
+
+  run = (gimp_dialog_run (GIMP_DIALOG (dialog)) == GTK_RESPONSE_YES);
+
+  gtk_widget_destroy (dialog);
+
+  return run;
 }
 
 /*
