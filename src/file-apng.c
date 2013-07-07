@@ -1001,7 +1001,7 @@ load_image (const gchar  *filename,
       parasite = gimp_parasite_new ("gamma",
                                     GIMP_PARASITE_PERSISTENT,
                                     strlen (buf) + 1, buf);
-      gimp_image_parasite_attach (image, parasite);
+      gimp_image_attach_parasite (image, parasite);
       gimp_parasite_free (parasite);
     }
 
@@ -1265,7 +1265,7 @@ load_image (const gchar  *filename,
           parasite = gimp_parasite_new ("gimp-comment",
                                         GIMP_PARASITE_PERSISTENT,
                                         strlen (comment) + 1, comment);
-          gimp_image_parasite_attach (image, parasite);
+          gimp_image_attach_parasite (image, parasite);
           gimp_parasite_free (parasite);
         }
 
@@ -1292,7 +1292,7 @@ load_image (const gchar  *filename,
                                       GIMP_PARASITE_UNDOABLE,
                                       proflen, profile);
 
-        gimp_image_parasite_attach (image, parasite);
+        gimp_image_attach_parasite (image, parasite);
         gimp_parasite_free (parasite);
 
         if (profname)
@@ -1306,7 +1306,7 @@ load_image (const gchar  *filename,
                                               GIMP_PARASITE_PERSISTENT |
                                               GIMP_PARASITE_UNDOABLE,
                                               strlen (tmp), tmp);
-                gimp_image_parasite_attach (image, parasite);
+                gimp_image_attach_parasite (image, parasite);
                 gimp_parasite_free (parasite);
 
                 g_free (tmp);
@@ -2600,7 +2600,7 @@ save_defaults (void)
                                 GIMP_PARASITE_PERSISTENT,
                                 strlen (def_str), def_str);
 
-  gimp_parasite_attach (parasite);
+  gimp_attach_parasite (parasite);
 
   gimp_parasite_free (parasite);
   g_free (def_str);
