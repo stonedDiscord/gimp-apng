@@ -2509,7 +2509,7 @@ load_defaults (void)
 {
   GimpParasite *parasite;
 
-  parasite = gimp_parasite_find (PNG_DEFAULTS_PARASITE);
+  parasite = gimp_get_parasite (PNG_DEFAULTS_PARASITE);
 
   if (parasite)
     {
