@@ -977,7 +977,7 @@ load_image (const gchar  *filename,
   if (image == -1)
     {
       g_set_error (error, 0, 0,
-                   "Could not create new image for '%s': %s",
+                   _("Could not create new image for '%s': %s"),
                    gimp_filename_to_utf8 (filename), gimp_get_pdb_error ());
       return -1;
     }
@@ -2392,7 +2392,7 @@ save_dialog (gint32    image_ID,
       gchar *display_name = g_filename_display_name (ui_file);
 
       g_printerr (_("Error loading UI file '%s': %s"),
-                  display_name, error ? error->message : "???");
+                  display_name, error ? error->message : _("Unknown error"));
 
       g_free (display_name);
     }
