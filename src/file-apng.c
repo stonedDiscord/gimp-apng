@@ -1010,12 +1010,20 @@ load_image (const gchar  *filename,
       offset_x = png_get_x_offset_pixels (pp, info);
       offset_y = png_get_y_offset_pixels (pp, info);
 
-      if ((abs (offset_x) > png_get_image_width (pp, info)) ||
-          (abs (offset_y) > png_get_image_height (pp, info)))
+      if (! interactive)
         {
-          if (interactive)
-            g_message (_("The PNG file specifies an offset that caused "
-                         "the layer to be positioned outside the image."));
+          /* offset all layers after created */;
+        }
+      else if (offsets_dialog (offset_x, offset_y))
+        {
+          /* offset all layers after created */;
+
+          if ((abs (offset_x) > png_get_image_width (pp, info)) ||
+              (abs (offset_y) > png_get_image_height (pp, info)))
+            {
+              g_message (_("The PNG file specifies an offset that caused "
+                           "the layer to be positioned outside the image."));
+            }
         }
     }
 
