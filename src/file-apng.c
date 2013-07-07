@@ -129,6 +129,17 @@ typedef struct
 }
 PngSaveGui;
 
+/* These are not saved or restored. */
+typedef struct
+{
+  gboolean   has_trns;
+  png_bytep  trans;
+  int        num_trans;
+  gboolean   has_plte;
+  png_colorp palette;
+  int        num_palette;
+}
+PngGlobals;
 
 /*
  * Local functions...
@@ -253,6 +264,7 @@ static const PngSaveVals defaults =
 };
 
 static PngSaveVals pngvals;
+static PngGlobals pngg;
 
 
 /*
