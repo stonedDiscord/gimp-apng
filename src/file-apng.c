@@ -197,7 +197,7 @@ static gint      parse_ms_tag              (const gchar      *str);
 static gint      parse_dispose_op_tag      (const gchar      *str);
 #endif
 
-static void      respin_cmap               (png_structp       pp,
+static int       respin_cmap               (png_structp       pp,
                                             png_infop         info,
                                             guchar           *remap,
                                             gint32            image_ID,
@@ -1070,24 +1070,22 @@ load_image (const gchar  *filename,
       png_colorp palette;
       int num_palette;
 
-      if (png_get_PLTE (pp, info, &palette, &num_palette))
+      png_get_PLTE (pp, info, &palette, &num_palette);
+      if (png_get_valid (pp, info, PNG_INFO_tRNS))
         {
-          if (png_get_valid (pp, info, PNG_INFO_tRNS))
-            {
-              for (empty = 0; empty < 256 && alpha[empty] == 0; ++empty)
-                /* Calculates number of fully transparent "empty" entries */;
+          for (empty = 0; empty < 256 && alpha[empty] == 0; ++empty)
+            /* Calculates number of fully transparent "empty" entries */;
 
-              /*  keep at least one entry  */
-              empty = MIN (empty, num_palette - 1);
+          /*  keep at least one entry  */
+          empty = MIN (empty, num_palette - 1);
 
-              gimp_image_set_colormap (image, (guchar *) (palette + empty),
-                                       num_palette - empty);
-            }
-          else
-            {
-              gimp_image_set_colormap (image, (guchar *) palette,
-                                       num_palette);
-            }
+          gimp_image_set_colormap (image, (guchar *) (palette + empty),
+                                   num_palette - empty);
+        }
+      else
+        {
+          gimp_image_set_colormap (image, (guchar *) palette,
+                                   num_palette);
         }
     }
 
@@ -1656,6 +1654,8 @@ save_image (const gchar  *filename,
    * Set color type and remember bytes per pixel count
    */
 
+  bit_depth = 8;
+
   switch (drawable_type)
     {
     case GIMP_RGB_IMAGE:
@@ -1679,34 +1679,24 @@ save_image (const gchar  *filename,
       break;
 
     case GIMP_INDEXED_IMAGE:
-      color_type = PNG_COLOR_TYPE_PALETTE;
       bpp = 1;
+      color_type = PNG_COLOR_TYPE_PALETTE;
+      pngg.has_plte = TRUE;
+      pngg.palette = (png_colorp) gimp_image_get_colormap (image_ID,
+                                                           &pngg.num_palette);
+      bit_depth = get_bit_depth_for_palette (pngg.num_palette);
       break;
 
     case GIMP_INDEXEDA_IMAGE:
-      color_type = PNG_COLOR_TYPE_PALETTE;
       bpp = 2;
+      color_type = PNG_COLOR_TYPE_PALETTE;
+      /* fix up transparency */
+      bit_depth = respin_cmap (pp, info, remap, image_ID, drawable);
       break;
 
     default:
       g_set_error (error, 0, 0, "Image type can't be saved as PNG");
       return FALSE;
-    }
-
-  /*
-   * Fix bit depths for (possibly) smaller colormap images
-   */
-
-  bit_depth = 8;
-  if (color_type == PNG_COLOR_TYPE_PALETTE)
-    {
-      if (num_colors <= 2)
-        bit_depth = 1;
-      else if (num_colors <= 4)
-        bit_depth = 2;
-      else if (num_colors <= 16)
-        bit_depth = 4;
-      /* otherwise the default is fine */
     }
 
   /*
@@ -1717,29 +1707,18 @@ save_image (const gchar  *filename,
                bit_depth, color_type,
                pngvals.interlaced, PNG_COMPRESSION_TYPE_BASE,
                PNG_FILTER_TYPE_BASE);
-  png_set_compression_level (pp, pngvals.compression_level);
 
-  /*
-   * Initialise remap[]
-   */
-  for (i = 0; i < 256; i++)
-    remap[i] = i;
-
-  if (color_type == PNG_COLOR_TYPE_PALETTE)
+  if (pngg.has_trns)
     {
-      if (bpp == 1)
-        {
-          png_colorp palette;
-
-          palette = (png_colorp) gimp_image_get_colormap (image_ID, &num_colors),
-          png_set_PLTE (pp, info, palette, num_colors);
-        }
-      else
-        {
-          /* fix up transparency */
-          respin_cmap (pp, info, remap, image_ID, drawable);
-        }
+      png_set_tRNS (pp, info, pngg.trans, pngg.num_trans, NULL);
     }
+
+  if (pngg.has_plte)
+    {
+      png_set_PLTE (pp, info, pngg.palette, pngg.num_palette);
+    }
+
+  png_set_compression_level (pp, pngvals.compression_level);
 
   /* All this stuff is optional extras, if the user is aiming for smallest
      possible file size she can turn them all off */
@@ -2268,14 +2247,14 @@ find_unused_ia_color (GimpDrawable *drawable,
 }
 
 
-static void
+static int
 respin_cmap (png_structp   pp,
              png_infop     info,
              guchar       *remap,
              gint32        image_ID,
              GimpDrawable *drawable)
 {
-  static const guchar trans[] = { 0 };
+  static guchar trans[] = { 0 };
 
   gint          colors;
   guchar       *before;
@@ -2302,10 +2281,13 @@ respin_cmap (png_structp   pp,
                                      * index - do like gif2png and swap
                                      * index 0 and index transparent */
         {
-          png_color palette[256];
+          static png_color palette[256];
           gint      i;
 
-          png_set_tRNS (pp, info, (png_bytep) trans, 1, NULL);
+          /* Set tRNS chunk values for writing later. */
+          pngg.has_trns = TRUE;
+          pngg.trans = trans;
+          pngg.num_trans = 1;
 
           /* Transform all pixels with a value = transparent to
            * 0 and vice versa to compensate for re-ordering in palette
@@ -2326,7 +2308,10 @@ respin_cmap (png_structp   pp,
               palette[i].blue = before[3 * remap[i] + 2];
             }
 
-          png_set_PLTE (pp, info, palette, colors);
+          /* Set PLTE chunk values for writing later. */
+          pngg.has_plte = TRUE;
+          pngg.palette = palette;
+          pngg.num_palette = colors;
         }
       else
         {
@@ -2334,14 +2319,22 @@ respin_cmap (png_structp   pp,
            * transparency & just use the full palette */
           g_message (_("Couldn't losslessly save transparency, "
                        "saving opacity instead."));
-          png_set_PLTE (pp, info, (png_colorp) before, colors);
+
+          /* Set PLTE chunk values for writing later. */
+          pngg.has_plte = TRUE;
+          pngg.palette = (png_colorp) before;
+          pngg.num_palette = colors;
         }
     }
   else
     {
-      png_set_PLTE (pp, info, (png_colorp) before, colors);
+      /* Set PLTE chunk values for writing later. */
+      pngg.has_plte = TRUE;
+      pngg.palette = (png_colorp) before;
+      pngg.num_palette = colors;
     }
 
+  return get_bit_depth_for_palette (colors);
 }
 
 static GtkWidget *
