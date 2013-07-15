@@ -798,7 +798,6 @@ get_bit_depth_for_palette (int num_palette)
 /*
  * 'load_image()' - Load a PNG image into a new image window.
  */
-
 static gint32
 load_image (const gchar  *filename,
             gboolean      interactive,
@@ -1726,6 +1725,8 @@ save_image (const gchar  *filename,
       png_set_PLTE (pp, info, pngg.palette, pngg.num_palette);
     }
 
+  /* Set the compression level */
+
   png_set_compression_level (pp, pngvals.compression_level);
 
   /* All this stuff is optional extras, if the user is aiming for smallest
@@ -2033,9 +2034,11 @@ write_frame (gint32        drawable_ID,
                     }
                 }
             }
+
           /* Otherwise if we have a paletted image and transparency
            * couldn't be set, we ignore the alpha channel */
-          else if (png_get_valid (pp, info, PNG_INFO_PLTE) && bpp == 2)
+          else if (png_get_valid (pp, info, PNG_INFO_PLTE) &&
+                   bpp == 2)
             {
               for (i = 0; i < num; ++i)
                 {
