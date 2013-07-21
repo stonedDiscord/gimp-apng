@@ -1710,10 +1710,11 @@ save_image (const gchar  *filename,
    * Set the image dimensions, bit depth, interlacing and compression
    */
 
-  png_set_IHDR(pp, info, drawable->width, drawable->height,
-               bit_depth, color_type,
-               pngvals.interlaced, PNG_COMPRESSION_TYPE_BASE,
-               PNG_FILTER_TYPE_BASE);
+  png_set_IHDR (pp, info, drawable->width, drawable->height,
+                bit_depth, color_type,
+                pngvals.interlaced ? PNG_INTERLACE_ADAM7 : PNG_INTERLACE_NONE,
+                PNG_COMPRESSION_TYPE_BASE,
+                PNG_FILTER_TYPE_BASE);
 
   if (pngg.has_trns)
     {
