@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: install dependencies
+      run: sudo apt install autoconf2.69
     - name: configure
       run: |
         autoconf-2.69
