@@ -20,7 +20,7 @@ jobs:
     - name: configure
       run: |
         autoconf-2.69
-        ./configure
+        bash ./configure
     - name: make
       run: |
         automake
