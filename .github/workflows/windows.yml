@@ -15,10 +15,11 @@ jobs:
     - uses: actions/checkout@v3
     - name: Install Cygwin Action
       uses: cygwin/cygwin-install-action@v2
+      with:
+        packages: autoconf2.5 automake make gcc-g++
     - name: configure
       run: |
-        autoupdate
-        autoconf
+        autoconf-2.69
         ./configure
     - name: make
       run: |
