@@ -17,9 +17,11 @@ jobs:
       run: sudo apt install autoconf2.69
     - name: configure
       run: |
-        autoconf2.69
+        libtoolize --force
+        aclocal
+        autoheader-2.69
         automake --force-missing --add-missing
-        autoconf2.69
+        autoconf-2.69
         ./configure
     - name: make
       run: |

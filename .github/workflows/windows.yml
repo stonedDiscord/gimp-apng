@@ -16,10 +16,13 @@ jobs:
     - name: Install Cygwin Action
       uses: cygwin/cygwin-install-action@v2
       with:
-        packages: autoconf2.5 automake make gcc-g++
+        packages: autoconf2.5 automake libtool make gcc-g++
     - name: configure
       run: |
-        autoconf-2.69
+        mkdir config
+        libtoolize --force
+        aclocal
+        autoheader-2.69
         automake --force-missing --add-missing
         autoconf-2.69
         bash ./configure
