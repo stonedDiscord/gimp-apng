@@ -1,0 +1,25 @@
+name: Ubuntu Build
+
+on:
+  push:
+    branches: [ "list" ]
+  pull_request:
+    branches: [ "list" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: configure
+      run: |
+        autoconf
+        ./configure
+    - name: make
+      run: |
+        automake
+        make
+    - name: make install
+      run: make install
