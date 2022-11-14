@@ -19,6 +19,7 @@ jobs:
         packages: autoconf2.5 automake make gcc-g++
     - name: configure
       run: |
+        autoconf-2.69
         automake --force-missing --add-missing
         autoconf-2.69
         bash ./configure
