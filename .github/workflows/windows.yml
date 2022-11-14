@@ -1,0 +1,27 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ "list" ]
+  pull_request:
+    branches: [ "list" ]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install Cygwin Action
+      uses: cygwin/cygwin-install-action@v2
+    - name: configure
+      run: |
+        autoconf
+        ./configure
+    - name: make
+      run: |
+        automake
+        make
+    - name: make install
+      run: make install
