@@ -18,11 +18,11 @@ jobs:
     - name: configure
       run: |
         mkdir config
-        libtoolize --force
-        aclocal
-        autoheader-2.69
+        libtoolize --force --verbose
+        aclocal --verbose
+        autoheader-2.69 -v
         automake --force-missing --add-missing
-        autoconf-2.69
+        autoconf-2.69 -v
         ./configure
     - name: make
       run: |
