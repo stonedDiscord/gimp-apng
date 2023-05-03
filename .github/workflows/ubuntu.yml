@@ -24,3 +24,9 @@ jobs:
         make
     - name: make install
       run: sudo make install
+    - name: Upload
+      uses: actions/upload-artifact@v1
+      with:
+        path: /usr/local/share/gimp-apng/
+        name: ubuntu
+      
