@@ -21,14 +21,7 @@ jobs:
 
     - name: configure
       run: |
-        mkdir config
-        ls
-        libtoolize --force --verbose
-        aclocal-1.9 --verbose
-        autoheader-2.69 -v
-        automake-1.9 --force-missing --add-missing
-        autoconf-2.69 -v
-        bash ./configure
+        bash ./autogen.sh
 
     - name: make
       run: |
