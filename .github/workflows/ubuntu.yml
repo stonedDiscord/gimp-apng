@@ -27,6 +27,6 @@ jobs:
     - name: Upload
       uses: actions/upload-artifact@v1
       with:
-        path: /usr/local/share/gimp-apng/
+        path: /home/runner/.gimp-2.10.18/plug-ins/
         name: ubuntu
       
