@@ -12,14 +12,17 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
     - name: Install Cygwin Action
       uses: cygwin/cygwin-install-action@v2
       with:
         packages: autoconf2.5 automake1.9 libtool make gcc-g++ pkg-config
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
     - name: configure
       run: |
         mkdir config
+        ls
         libtoolize --force --verbose
         aclocal-1.9 --verbose
         autoheader-2.69 -v
