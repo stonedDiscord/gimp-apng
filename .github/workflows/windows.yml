@@ -20,9 +20,11 @@ jobs:
       with:
         packages: autoconf2.5 automake1.9 automake-wrapper libtool intltool make gcc-g++ pkg-config
         
-    - name: configure
+    - name: Create config folder
+      run: mkdir -p config
+  
+    - name: Autoconf
       run: |
-        mkdir config
         aclocal-1.9 -I config
         autoheader-2.69 -W all
         automake-1.9 -W all --add-missing
@@ -31,5 +33,4 @@ jobs:
         ls
 
     - name: make
-      run: |
-        make
+      run: make
