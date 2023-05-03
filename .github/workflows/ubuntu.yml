@@ -18,9 +18,9 @@ jobs:
     - name: configure
       run: |
         ./autogen.sh
+        ./configure
     - name: make
       run: |
-        ls
         make
     - name: make install
       run: make install
