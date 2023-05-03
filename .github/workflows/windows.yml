@@ -19,7 +19,7 @@ jobs:
         
     - name: Set line endings
       run: |
-        git config --global core.autocrlf true
+        git config --global core.autocrlf false
         
     - name: Checkout repo
       uses: actions/checkout@v3
