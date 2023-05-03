@@ -26,6 +26,7 @@ jobs:
         automake-1.9 --force-missing --add-missing
         autoconf-2.69 -v
         bash ./configure
+
     - name: make
       run: |
         make
