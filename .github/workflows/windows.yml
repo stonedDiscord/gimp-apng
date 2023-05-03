@@ -15,18 +15,19 @@ jobs:
     - name: Install Cygwin Action
       uses: cygwin/cygwin-install-action@v2
       with:
-        packages: autoconf2.5 automake1.9 automake-wrapper libtool make gcc-g++ pkg-config
-        
-    - name: Set line endings
-      run: |
-        git config --global core.autocrlf false
+        packages: autoconf2.5 automake1.9 automake-wrapper libtool intltool make gcc-g++ pkg-config
         
     - name: Checkout repo
       uses: actions/checkout@v3
 
     - name: configure
       run: |
-        bash ./autogen.sh
+        mkdir config
+        aclocal-1.9 -I config
+        autoheader-2.69 -W all
+        automake-1.9 -W all --add-missing
+        autoconf-2.69 -W all
+        intltoolize --automake
         bash ./configure
 
     - name: make
