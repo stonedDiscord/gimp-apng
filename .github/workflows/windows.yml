@@ -15,7 +15,7 @@ jobs:
     - name: Install Cygwin Action
       uses: cygwin/cygwin-install-action@v2
       with:
-        packages: autoconf2.5 automake1.9 libtool make gcc-g++ pkg-config
+        packages: autoconf2.5 automake1.9 automake-wrapper libtool make gcc-g++ pkg-config
         
     - name: Set line endings
       run: |
@@ -27,6 +27,7 @@ jobs:
     - name: configure
       run: |
         bash ./autogen.sh
+        bash ./configure
 
     - name: make
       run: |
