@@ -20,6 +20,7 @@ jobs:
         ./autogen.sh
     - name: make
       run: |
+        ls
         make
     - name: make install
       run: make install
