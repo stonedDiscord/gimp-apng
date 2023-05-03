@@ -16,6 +16,11 @@ jobs:
       uses: cygwin/cygwin-install-action@v2
       with:
         packages: autoconf2.5 automake1.9 libtool make gcc-g++ pkg-config
+        
+    - name: Set line endings
+      run: |
+        git config --global core.autocrlf true
+        
     - name: Checkout repo
       uses: actions/checkout@v3
 
