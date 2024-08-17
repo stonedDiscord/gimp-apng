@@ -5,27 +5,23 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   build:
 
-    runs-on: windows-latest
+    runs-on: windows-2019
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Install Cygwin Action
       uses: cygwin/cygwin-install-action@master
       with:
-        packages: autoconf2.5 automake1.9 automake-wrapper libtool intltool make gcc-g++ pkg-config
+        packages: autoconf2.5 automake automake-wrapper libtool intltool make gcc-g++ pkg-config
         
     - name: Create config folder
       run: mkdir -p config
   
     - name: Autoconf
       run: |
-        aclocal-1.9 -I config
-        autoheader-2.69 -W all
-        automake-1.9 -W all --add-missing
-        autoconf-2.69 -W all
-        intltoolize --automake
+        C:\cygwin\bin\bash.exe ./autogen.sh
         ls
 
     - name: make
