@@ -1,10 +1,6 @@
 name: Ubuntu Build
 
-on:
-  push:
-    branches: [ "list" ]
-  pull_request:
-    branches: [ "list" ]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build:
@@ -12,20 +8,25 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    
     - name: install dependencies
       run: sudo apt install libgimp2.0-dev gettext autoconf automake intltool libtool
+      
     - name: configure
       run: |
         ./autogen.sh
         ./configure
+        
     - name: make
       run: |
         make
+        
     - name: make install
       run: sudo make install
+      
     - name: Upload
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         path: /home/runner/.gimp-2.10.18/plug-ins/
         name: ubuntu
